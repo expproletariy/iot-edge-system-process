@@ -82,7 +82,7 @@ func (f *IotSignalGenerationProcessorFixture) TestSendNewSensorSignalWithoutSche
 
 	processor.SendNewSensorSignal()
 
-	msgEnvelop, err := mainQueue.Receive("", time.Second)
+	msgEnvelop, err := mainQueue.Receive("", 10000*time.Millisecond)
 	assert.Nil(t, err)
 	assert.NotNil(t, msgEnvelop)
 	assert.NotZero(t, msgEnvelop.Message)

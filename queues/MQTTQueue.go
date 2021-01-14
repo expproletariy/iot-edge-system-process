@@ -7,10 +7,12 @@ import (
 	cref "github.com/pip-services3-go/pip-services3-commons-go/refer"
 	msgqueues "github.com/pip-services3-go/pip-services3-messaging-go/queues"
 	cmqttqueue "github.com/pip-services3-go/pip-services3-mqtt-go/queues"
+	"sync"
 )
 
 type MQTTQueue struct {
-	queue *cmqttqueue.MqttMessageQueue
+	queue   *cmqttqueue.MqttMessageQueue
+	rwMutex sync.RWMutex
 }
 
 func NewMQTTQueue() *MQTTQueue {
@@ -18,14 +20,20 @@ func NewMQTTQueue() *MQTTQueue {
 }
 
 func (q *MQTTQueue) Close(correlationId string) error {
+	q.rwMutex.Lock()
+	defer q.rwMutex.Unlock()
 	return q.queue.Close(correlationId)
 }
 
 func (q *MQTTQueue) IsOpen() bool {
+	q.rwMutex.RLock()
+	defer q.rwMutex.RUnlock()
 	return q.queue.IsOpen()
 }
 
 func (q *MQTTQueue) Open(correlationId string) error {
+	q.rwMutex.Lock()
+	defer q.rwMutex.Unlock()
 	return q.queue.Open(correlationId)
 }
 
@@ -54,6 +62,8 @@ func (q *MQTTQueue) SetReferences(references cref.IReferences) {
 }
 
 func (q *MQTTQueue) Send(correlationId string, signal dataV1.SensorSignal) error {
+	q.rwMutex.Lock()
+	defer q.rwMutex.Unlock()
 	msgBuffer, err := json.Marshal(signal)
 	if err != nil {
 		return err

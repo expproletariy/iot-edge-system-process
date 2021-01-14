@@ -9,7 +9,6 @@ import (
 
 type IQueue interface {
 	crun.IOpenable
-	crun.IClosable
 	cconf.IConfigurable
 	cref.IReferenceable
 	Send(correlationId string, signal dataV1.SensorSignal) error

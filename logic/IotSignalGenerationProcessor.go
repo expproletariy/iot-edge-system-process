@@ -6,6 +6,7 @@ import (
 	cref "github.com/pip-services3-go/pip-services3-commons-go/refer"
 	crun "github.com/pip-services3-go/pip-services3-commons-go/run"
 	clog "github.com/pip-services3-go/pip-services3-components-go/log"
+	"sync"
 )
 
 type IotSignalGenerationProcessor struct {
@@ -21,6 +22,7 @@ type IotSignalGenerationProcessor struct {
 	Logger     *clog.CompositeLogger
 	controller IIotSignalController
 	queue      queues.IQueue
+	rwMutex    sync.RWMutex
 }
 
 func NewIotSignalGenerationProcessor() *IotSignalGenerationProcessor {
@@ -31,7 +33,6 @@ func NewIotSignalGenerationProcessor() *IotSignalGenerationProcessor {
 }
 
 func (c *IotSignalGenerationProcessor) Configure(config *cconf.ConfigParams) {
-	c.queue.Configure(config)
 	interval := config.GetAsInteger("timer.interval")
 	if interval != 0 {
 		c.scheduler.SetInterval(interval)
@@ -51,12 +52,15 @@ func (c *IotSignalGenerationProcessor) SetReferences(references cref.IReferences
 	ref, err = references.GetOneRequired(cref.NewDescriptor("iot-edge-system-service", "queue", "default", "*", "1.0"))
 	if ref != nil && err == nil {
 		if queue, ok := ref.(queues.IQueue); ok {
+			queue.SetReferences(references)
 			c.queue = queue
 		}
 	}
 }
 
 func (c *IotSignalGenerationProcessor) Open(correlationId string) error {
+	c.rwMutex.Lock()
+	defer c.rwMutex.Unlock()
 	if c.opened {
 		return nil
 	}
@@ -73,10 +77,14 @@ func (c *IotSignalGenerationProcessor) Open(correlationId string) error {
 }
 
 func (c *IotSignalGenerationProcessor) IsOpen() bool {
+	c.rwMutex.RLock()
+	defer c.rwMutex.RUnlock()
 	return c.opened
 }
 
 func (c *IotSignalGenerationProcessor) Close(correlationId string) error {
+	c.rwMutex.Lock()
+	defer c.rwMutex.Unlock()
 	if !c.opened {
 		return nil
 	}
@@ -93,6 +101,8 @@ func (c *IotSignalGenerationProcessor) Close(correlationId string) error {
 }
 
 func (c *IotSignalGenerationProcessor) SendNewSensorSignal() {
+	c.rwMutex.RLock()
+	defer c.rwMutex.RUnlock()
 	signal := c.controller.NextSensorSignal()
 	err := c.queue.Send("", signal)
 	if err != nil {

@@ -61,18 +61,21 @@ func (f *IotSignalGenerationProcessorFixture) TestSendNewSensorSignalWithoutSche
 	err := mainQueue.Open("")
 	assert.Nil(t, err)
 
-	processor := logic.NewIotSignalGenerationProcessor()
-	processor.SetReferences(cref.NewReferencesFromTuples(
-		cref.NewDescriptor("iot-edge-system-service", "controller", "default", "*", "1.0"), f.controller,
-		cref.NewDescriptor("iot-edge-system-service", "queue", "default", "*", "1.0"), queues.NewMQTTQueue(),
-	))
-
-	processor.Configure(cconf.NewConfigParamsFromTuples(
+	queue := queues.NewMQTTQueue()
+	queue.Configure(cconf.NewConfigParamsFromTuples(
 		"mqtt.name", brokerName,
 		"mqtt.topic", brokerTopic,
 		"mqtt.host", brokerHost,
 		"mqtt.port", brokerPort,
 	))
+
+	processor := logic.NewIotSignalGenerationProcessor()
+	processor.SetReferences(cref.NewReferencesFromTuples(
+		cref.NewDescriptor("iot-edge-system-service", "controller", "default", "*", "1.0"), f.controller,
+		cref.NewDescriptor("iot-edge-system-service", "queue", "default", "*", "1.0"), queue,
+	))
+
+	processor.Configure(cconf.NewEmptyConfigParams())
 
 	err = processor.Open("")
 	assert.Nil(t, err)
@@ -89,6 +92,49 @@ func (f *IotSignalGenerationProcessorFixture) TestSendNewSensorSignalWithoutSche
 
 	err = mainQueue.Close("")
 	assert.Nil(t, err)
+	err = processor.Close("")
+	assert.Nil(t, err)
+}
+
+func (f *IotSignalGenerationProcessorFixture) TestSendNewSensorSignal(t *testing.T) {
+	brokerName := "iot-edge-system-service-test"
+	brokerHost := os.Getenv("MOSQUITTO_HOST")
+	if brokerHost == "" {
+		brokerHost = "localhost"
+	}
+	brokerPort := os.Getenv("MOSQUITTO_PORT")
+	if brokerPort == "" {
+		brokerPort = "1883"
+	}
+	brokerTopic := os.Getenv("MOSQUITTO_TOPIC")
+	if brokerTopic == "" {
+		brokerTopic = "/test"
+	}
+	if brokerHost == "" && brokerPort == "" {
+		return
+	}
+	queue := queues.NewMQTTQueue()
+	queue.Configure(cconf.NewConfigParamsFromTuples(
+		"mqtt.name", brokerName,
+		"mqtt.topic", brokerTopic,
+		"mqtt.host", brokerHost,
+		"mqtt.port", brokerPort,
+	))
+
+	processor := logic.NewIotSignalGenerationProcessor()
+	processor.SetReferences(cref.NewReferencesFromTuples(
+		cref.NewDescriptor("iot-edge-system-service", "controller", "default", "*", "1.0"), f.controller,
+		cref.NewDescriptor("iot-edge-system-service", "queue", "default", "*", "1.0"), queue,
+	))
+
+	processor.Configure(cconf.NewConfigParamsFromTuples(
+		"timer.interval", time.Millisecond.Milliseconds()*100,
+	))
+
+	err := processor.Open("")
+	assert.Nil(t, err)
+
+	time.Sleep(time.Second)
 	err = processor.Close("")
 	assert.Nil(t, err)
 }

@@ -1,0 +1,44 @@
+---
+  # Container descriptor
+  - descriptor: "pip-services:context-info:default:default:1.0"
+    name: "iot-edge-system-service"
+    description: "IoT GW Edge System Service"
+  
+  # Console logger
+  - descriptor: "pip-services:logger:console:default:1.0"
+    level: "trace"
+  
+  # Perfomance counter that post values to log
+  - descriptor: "pip-services:counters:log:default:1.0"
+  # Message queue
+  - descriptor: "iot-edge-system-service:queue:default:default:1.0"
+    mqtt:
+      name: "iot-edge-system-service-queue"
+      host: {{MOSQUITTO_HOST}}
+      port: {{MOSQUITTO_PORT}}
+      topic: "/iot-edge-system-service"
+
+  # Controller
+  - descriptor: "iot-edge-system-service:controller:default:default:1.0"
+    site:
+      maxSites: 10
+    partition:
+      maxPartitions: 100
+  # Controller
+  - descriptor: "iot-edge-system-service:processor:default:default:1.0"
+    timer:
+      interval: 1000
+
+{{#if HTTP_ENABLED}}
+  # Shared HTTP Endpoint
+  - descriptor: "pip-services:endpoint:http:default:1.0"
+    connection:
+      protocol: http
+      host: 0.0.0.0
+      port: {{HTTP_PORT}}{{#unless HTTP_PORT}}8080{{/unless}}
+  # Hearbeat service
+  - descriptor: "pip-services:heartbeat-service:http:default:1.0"
+
+  # Status service
+  - descriptor: "pip-services:status-service:http:default:1.0"
+{{/if}}
